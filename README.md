@@ -37,6 +37,18 @@ Keep real source data outside this repository. The `.gitignore` excludes local c
 3. Start the development app with `pnpm dev`.
 4. Create a production build with `pnpm build`.
 
+## Publish with GitHub Pages
+
+The repository includes an automatic GitHub Pages workflow. It compiles the application and adjusts all PWA paths for the repository's Pages address.
+
+1. Copy or commit the complete project, including `.github/workflows/deploy-pages.yml`, to the repository's `main` branch.
+2. On GitHub, open **Settings → Pages**.
+3. Under **Build and deployment**, choose **GitHub Actions** as the source.
+4. Open the repository's **Actions** tab and wait for **Deploy Goobs Song Finder** to finish.
+5. Open the Pages URL shown by the completed deployment. Do not open the repository's raw `index.html` file.
+
+Only the application and fictional demo database are published. Keep any real lyric corpus and generated private database outside GitHub, then use **Import my database** on the device.
+
 ## Production database example
 
 Place your source file outside the repository, then run:

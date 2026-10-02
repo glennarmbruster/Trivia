@@ -191,7 +191,7 @@ const bindEvents = () => {
   });
   document.querySelector("#sample-button")?.addEventListener("click", () => {
     void withBusy(async () => {
-      const response = await fetch("/sample-song-database.sqlite");
+      const response = await fetch(`${import.meta.env.BASE_URL}sample-song-database.sqlite`);
       if (!response.ok) throw new Error("The demo database could not be loaded.");
       await installBlob(await response.blob());
     });
