@@ -1,0 +1,11 @@
+{
+  "format": "goobs-song-finder-database",
+  "schemaVersion": 1,
+  "databaseVersion": "demo-1960s-1990s",
+  "songs": 5,
+  "minYear": 1964,
+  "maxYear": 1998,
+  "bytes": 40960,
+  "sha256": "a6fcdf6b65a0c813160b078259c2dceca662f9c86a756f3bf1a3887cd033b801",
+  "file": "sample-song-database.sqlite"
+}

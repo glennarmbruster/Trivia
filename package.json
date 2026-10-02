@@ -1,0 +1,20 @@
+{
+  "name": "goobs-song-finder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "build:sample-db": "python3 tools/build_database.py --input sample-data/songs.jsonl --output public/sample-song-database.sqlite --manifest public/sample-song-database.json"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.50.4-build1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^7.1.7",
+    "vite-plugin-pwa": "^1.1.0"
+  }
+}
