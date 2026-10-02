@@ -143,7 +143,7 @@ const render = () => {
         ${busy && installProgress > 0 ? `<div class="progress"><span style="width:${installProgress * 100}%"></span></div>` : ""}
         <div class="database-actions">
           <button class="primary-action" id="sample-button" type="button" ${busy ? "disabled" : ""}>${ready ? "Reinstall demo" : "Install demo database"}</button>
-          <label class="secondary-action ${busy ? "disabled" : ""}">Import my database<input id="database-file" type="file" accept=".sqlite,.sqlite3,.db,application/vnd.sqlite3" ${busy ? "disabled" : ""} /></label>
+          <label class="secondary-action ${busy ? "disabled" : ""}">Import my database<input id="database-file" type="file" ${busy ? "disabled" : ""} /></label>
           <button class="text-action" id="offline-test" type="button" ${ready && !busy ? "" : "disabled"}>Run offline test</button>
         </div>
         <p class="storage-note">${persisted ? "Persistent storage granted. The browser should retain this database until you remove it." : "Storage is currently best-effort. Installing the PWA improves retention."}${storageQuota ? ` ${formatBytes(Math.max(0, storageQuota - storageUsage))} available.` : ""}</p>
