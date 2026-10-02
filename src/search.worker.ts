@@ -23,9 +23,26 @@ type SearchResult = {
   album: string | null;
   score: number;
   explanation: string;
+  popularity: number;
 };
 
 const DB_NAME = "/goobs-song-finder.sqlite";
+const PLAIN_CONTRACTIONS: Record<string, string> = {
+  arent: "are not",
+  couldnt: "could not",
+  didnt: "did not",
+  doesnt: "does not",
+  dont: "do not",
+  hadnt: "had not",
+  hasnt: "has not",
+  havent: "have not",
+  isnt: "is not",
+  mustnt: "must not",
+  shouldnt: "should not",
+  wasnt: "was not",
+  werent: "were not",
+  wouldnt: "would not"
+};
 let sqlite3: any;
 let pool: any;
 let db: any;
@@ -37,8 +54,14 @@ const normalize = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[’‘]/g, "'")
     .replace(/\bcan't\b/g, "cannot")
+    .replace(/\bcant\b/g, "cannot")
     .replace(/\bwon't\b/g, "will not")
+    .replace(/\bwont\b/g, "will not")
     .replace(/\b([a-z]+)n't\b/g, "$1 not")
+    .replace(
+      /\b(arent|couldnt|didnt|doesnt|dont|hadnt|hasnt|havent|isnt|mustnt|shouldnt|wasnt|werent|wouldnt)\b/g,
+      (word) => PLAIN_CONTRACTIONS[word]
+    )
     .replace(/\b([a-z]+)'(re|ve|ll|d|m|s)\b/g, "$1 $2")
     .match(/[a-z0-9]+/g)
     ?.join(" ") ?? "";
@@ -146,6 +169,7 @@ const importDatabase = async (source: Blob) => {
 
 const findAlternatives = (token: string) => {
   if (!db || token.length < 3) return [token];
+  if (Number(db.selectValue("SELECT EXISTS(SELECT 1 FROM lexicon WHERE token = ?)", [token]))) return [token];
   const maxDistance = token.length <= 5 ? 1 : 2;
   const candidates = db.selectObjects(
     `SELECT token, document_frequency, phonetic
@@ -168,6 +192,23 @@ const findAlternatives = (token: string) => {
 };
 
 const escapeFts = (token: string) => `"${token.replaceAll('"', '""')}"`;
+
+const expandCompoundToken = (token: string): string[] => {
+  if (!db || token.length < 7) return [token];
+  if (Number(db.selectValue("SELECT EXISTS(SELECT 1 FROM lexicon WHERE token = ?)", [token]))) return [token];
+
+  let best: string[] | undefined;
+  for (let split = 3; split <= token.length - 3; split += 1) {
+    const parts = [token.slice(0, split), token.slice(split)];
+    const known = Number(
+      db.selectValue("SELECT count(*) FROM lexicon WHERE token IN (?, ?)", parts)
+    );
+    if (known === 2 && (!best || Math.min(...parts.map((part) => part.length)) > Math.min(...best.map((part) => part.length)))) {
+      best = parts;
+    }
+  }
+  return best ?? [token];
+};
 
 const positionsFor = (tokens: string[], alternatives: string[][]) =>
   alternatives.map((group) => {
@@ -216,19 +257,20 @@ const scoreCandidate = (
   }
   const orderScore = queryTokens.length > 1 ? orderedPairs / (queryTokens.length - 1) : coverage;
   const proximity = Number.isFinite(bestSpan) ? Math.max(0, 1 - (bestSpan - matched) / 18) : 0;
+  const phraseMatch = exactPhrase || (matched === queryTokens.length && bestSpan === matched && orderScore === 1);
   const popularity = Math.min(100, Math.max(0, Number(row.popularity))) / 100;
-  const rankSignal = 1 / (1 + Math.max(0, Number(row.fts_rank) * 10));
+  const rankSignal = Math.min(1, Math.abs(Number(row.fts_rank)) / 12);
 
   const raw =
     coverage * 48 +
     orderScore * 17 +
     proximity * 12 +
-    (exactPhrase ? 18 : 0) +
+    (phraseMatch ? 18 : 0) +
     popularity * 3 +
     rankSignal * 2;
   const score = Math.max(1, Math.min(99, Math.round(raw)));
-  const explanation = exactPhrase
-    ? "Exact phrase"
+  const explanation = phraseMatch
+    ? exactPhrase ? "Exact phrase" : "Phrase match"
     : `${matched} of ${queryTokens.length} words${proximity > 0.72 ? " · close together" : orderScore > 0.55 ? " · mostly in order" : ""}`;
 
   return {
@@ -238,16 +280,22 @@ const scoreCandidate = (
     year: Number(row.year),
     album: row.album ? String(row.album) : null,
     score,
-    explanation
+    explanation,
+    popularity: Number(row.popularity)
   };
 };
 
 const search = (rawQuery: string): SearchResult[] => {
   const connection = openDatabase();
   if (!connection) throw new Error("Install a song database before searching.");
-  const query = normalize(rawQuery);
-  const queryTokens = query.split(" ").filter(Boolean).slice(0, 12);
+  const normalizedQuery = normalize(rawQuery);
+  const queryTokens = normalizedQuery
+    .split(" ")
+    .filter(Boolean)
+    .flatMap(expandCompoundToken)
+    .slice(0, 12);
   if (!queryTokens.length) return [];
+  const query = queryTokens.join(" ");
 
   const alternatives = queryTokens.map(findAlternatives);
   const clauses = alternatives
@@ -282,7 +330,7 @@ const search = (rawQuery: string): SearchResult[] => {
   return rows
     .map((row) => scoreCandidate(row, query, queryTokens, alternatives))
     .filter((result) => result.score >= 18)
-    .sort((a, b) => b.score - a.score || b.year - a.year)
+    .sort((a, b) => b.score - a.score || b.popularity - a.popularity || b.year - a.year)
     .slice(0, 10);
 };
 
